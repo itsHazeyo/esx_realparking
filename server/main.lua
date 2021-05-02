@@ -56,11 +56,10 @@ ESX.RegisterServerCallback("esx_realparking:saveCar", function(source, cb, vehic
 						["@plate"]      = plate,
 						["@identifier"] = xPlayer.identifier
 					})
-					MySQL.Async.execute('UPDATE owned_vehicles SET vehicle = @vehicle WHERE owner = @owner AND plate = @plate', {
-									['@owner'] = xPlayer.identifier,
-									['@vehicle'] = json.encode(vehicleData.props),
-									['@plate'] =  plate
-								})
+					MySQL.Async.execute('UPDATE owned_vehicles SET state = 1 WHERE plate = @plate AND owner = @identifier', {
+						["@plate"]      = plate,
+						["@identifier"] = xPlayer.identifier
+					})
 					cb({
 						status  = true,
 						message = _U("car_saved"),
@@ -109,6 +108,10 @@ ESX.RegisterServerCallback("esx_realparking:driveCar", function(source, cb, vehi
 							["@identifier"] = xPlayer.identifier
 						})
 						MySQL.Async.execute('UPDATE owned_vehicles SET stored = 0 WHERE plate = @plate AND owner = @identifier', {
+							["@plate"]      = plate,
+							["@identifier"] = xPlayer.identifier
+						})
+						MySQL.Async.execute('UPDATE owned_vehicles SET state = 0 WHERE plate = @plate AND owner = @identifier', {
 							["@plate"]      = plate,
 							["@identifier"] = xPlayer.identifier
 						})
