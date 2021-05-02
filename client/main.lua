@@ -15,7 +15,7 @@ SpawnedVehicles  = false
 RegisterNetEvent("esx_realparking:refreshVehicles")
 AddEventHandler("esx_realparking:refreshVehicles", function(vehicles)
 	RemoveVehicles()
-	Citizen.Wait(1000)
+	Citizen.Wait(500)
 	SpawnVehicles(vehicles)
 end)
 
@@ -67,7 +67,7 @@ function SpawnVehicles(vehicles)
 			SetModelAsNoLongerNeeded(vehicleProps["model"])
 			SetEntityInvincible(tempVeh, true)
 			SetVehicleLivery(tempVeh, vehicles[i].vehicle.livery)
-			Wait(100)
+			Wait(1000)
 			FreezeEntityPosition(tempVeh, true)
 			if vehicles[i].owner ~= PlayerData.identifier then
 				SetVehicleDoorsLocked(tempVeh, 2)
@@ -84,11 +84,11 @@ function SpawnVehicles(vehicles)
 			})
 			if LastPlate ~= nil and vehicles[i].plate == LastPlate then
 				TaskWarpPedIntoVehicle(GetPlayerPed(-1), tempVeh, -1)
-				Wait(500)
+				Wait(1000)
 				TaskLeaveVehicle(GetPlayerPed(-1), tempVeh)
 				LastPlate = nil
 			end
-			Wait(100)
+			Wait(500)
 		end
 	end)
 end
@@ -114,7 +114,7 @@ function SpawnVehicle(vehicleData)
 		SetVehicleEngineHealth(tempVeh, vehicleData.vehicle.health.engine)
 		SetVehicleBodyHealth(tempVeh, vehicleData.vehicle.health.body)
 		SetVehiclePetrolTankHealth(tempVeh, vehicleData.vehicle.health.tank)
-		Wait(100)
+		Wait(500)
 		FreezeEntityPosition(tempVeh, true)
 		if vehicleData.owner ~= PlayerData.identifier then
 			SetVehicleDoorsLocked(tempVeh, 2)
@@ -281,9 +281,9 @@ Citizen.CreateThread(function()
 			ESX = obj
 		end)
 	end
-	Wait(1000)
+	Wait(500)
 	while not ESX.IsPlayerLoaded() do
-		Citizen.Wait(10)
+		Citizen.Wait(500)
 	end
 	PlayerData = ESX.GetPlayerData()
 	ESX.TriggerServerCallback("esx_realparking:getPlayerIdentifier", function(callback)
@@ -300,7 +300,7 @@ Citizen.CreateThread(function()
 		Citizen.Wait(10)
 	end
 	while true do
-		Wait(0)
+		Wait(500)
 		local pl = GetEntityCoords(GetPlayerPed(-1))
 		local inParking = false
 		local crParking = nil
@@ -316,7 +316,7 @@ Citizen.CreateThread(function()
 				RemoveVehicles()
 				TriggerServerEvent("esx_realparking:refreshVehicles", crParking)
 				SpawnedVehicles = true
-				Wait(2000)
+				Wait(500)
 			end
 		else
 			if SpawnedVehicles then
@@ -351,17 +351,17 @@ end)
 
 -- Creating blips
 
-Citizen.CreateThread(function()
-	for k, v in pairs(Config.ParkingLocations) do
-		local tempBlip = AddBlipForCoord(v.enter.x, v.enter.y, v.enter.z)
-		SetBlipSprite(tempBlip, 523)
-		SetBlipColour(tempBlip, 11)
-		SetBlipAsShortRange(tempBlip, true)
-		BeginTextCommandSetBlipName("STRING")
-		AddTextComponentString(v.name)
-		EndTextCommandSetBlipName(tempBlip)
-	end
-end)
+--Citizen.CreateThread(function()
+--	for k, v in pairs(Config.ParkingLocations) do
+--		local tempBlip = AddBlipForCoord(v.enter.x, v.enter.y, v.enter.z)
+--		SetBlipSprite(tempBlip, 523)
+--		SetBlipColour(tempBlip, 11)
+--		SetBlipAsShortRange(tempBlip, true)
+--		BeginTextCommandSetBlipName("STRING")
+--		AddTextComponentString(v.name)
+--		EndTextCommandSetBlipName(tempBlip)
+--	end
+--end)
 
 -- Logic thread
 
@@ -384,7 +384,7 @@ Citizen.CreateThread(function()
 			else
 				DisplayHelpText(_U("press_to_save"))
 			end
-			if IsControlJustReleased(0, 51) then
+			if IsControlJustReleased(0, 86) then
 				if storedVehicle ~= false then
 					DoScreenFadeOut(250)
 					Wait(500)
