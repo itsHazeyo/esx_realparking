@@ -1,5 +1,6 @@
 --[[ ===================================================== ]]--
 --[[         FiveM Real Parking Script by Akkariin         ]]--
+--[[               Updated by itsHazeyo                    ]]--
 --[[ ===================================================== ]]--
 
 ESX = nil
@@ -56,11 +57,10 @@ ESX.RegisterServerCallback("esx_realparking:saveCar", function(source, cb, vehic
 						["@plate"]      = plate,
 						["@identifier"] = xPlayer.identifier
 					})
-					MySQL.Async.execute('UPDATE owned_vehicles SET vehicle = @vehicle WHERE owner = @owner AND plate = @plate', {
-									['@owner'] = xPlayer.identifier,
-									['@vehicle'] = json.encode(vehicleData.props),
-									['@plate'] =  plate
-								})
+					MySQL.Async.execute('UPDATE owned_vehicles SET state = 1 WHERE plate = @plate AND owner = @identifier', {
+						["@plate"]      = plate,
+						["@identifier"] = xPlayer.identifier
+					})
 					cb({
 						status  = true,
 						message = _U("car_saved"),
@@ -112,6 +112,10 @@ ESX.RegisterServerCallback("esx_realparking:driveCar", function(source, cb, vehi
 							["@plate"]      = plate,
 							["@identifier"] = xPlayer.identifier
 						})
+						MySQL.Async.execute('UPDATE owned_vehicles SET state = 0 WHERE plate = @plate AND owner = @identifier', {
+							["@plate"]      = plate,
+							["@identifier"] = xPlayer.identifier
+						})
 						cb({
 							status  = true,
 							message = string.format(_U("pay_success", fee)),
@@ -120,7 +124,29 @@ ESX.RegisterServerCallback("esx_realparking:driveCar", function(source, cb, vehi
 						TriggerClientEvent("esx_realparking:deleteVehicle", -1, {
 							plate = plate
 						})
+					elseif fee == 0 then
+						MySQL.Async.execute('DELETE FROM car_parking WHERE plate = @plate AND owner = @identifier', {
+							["@plate"]      = plate,
+							["@identifier"] = xPlayer.identifier
+						})
+						MySQL.Async.execute('UPDATE owned_vehicles SET stored = 0 WHERE plate = @plate AND owner = @identifier', {
+							["@plate"]      = plate,
+							["@identifier"] = xPlayer.identifier
+						})
+						MySQL.Async.execute('UPDATE owned_vehicles SET state = 0 WHERE plate = @plate AND owner = @identifier', {
+							["@plate"]      = plate,
+							["@identifier"] = xPlayer.identifier
+						})
+						cb({
+							status  = true,
+							message = string.format(_U("pay_nothing")),
+							vehData = json.decode(rs[1].data),
+						})
+						TriggerClientEvent("esx_realparking:deleteVehicle", -1, {
+							plate = plate
+						})
 					else
+
 						cb({
 							status  = false,
 							message = _U("not_enough_money"),
@@ -151,12 +177,12 @@ ESX.RegisterServerCallback("esx_realparking:impoundVehicle", function(source, cb
 		['@plate']      = plate
 	}, function(rs)
 		if type(rs) == 'table' and #rs > 0 and rs[1] ~= nil then
-			print("Police impound the vehicle: ", vehicleData.plate, rs[1].owner)
+			print("Admin level Mechanic has impound the vehicle: ", vehicleData.plate, rs[1].owner)
 			MySQL.Async.execute('DELETE FROM car_parking WHERE plate = @plate AND owner = @identifier', {
 				["@plate"]      = plate,
 				["@identifier"] = rs[1].owner
 			})
-			MySQL.Async.execute('UPDATE owned_vehicles SET stored = 0 WHERE plate = @plate AND owner = @identifier', {
+			MySQL.Async.execute('UPDATE owned_vehicles SET stored = 1 WHERE plate = @plate AND owner = @identifier', {
 				["@plate"]      = plate,
 				["@identifier"] = rs[1].owner
 			})

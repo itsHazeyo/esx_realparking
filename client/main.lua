@@ -1,5 +1,6 @@
 --[[ ===================================================== ]]--
 --[[         FiveM Real Parking Script by Akkariin         ]]--
+--[[               Updated by itsHazeyo                    ]]--
 --[[ ===================================================== ]]--
 
 ESX              = nil
@@ -14,9 +15,8 @@ SpawnedVehicles  = false
 
 RegisterNetEvent("esx_realparking:refreshVehicles")
 AddEventHandler("esx_realparking:refreshVehicles", function(vehicles)
-	RemoveVehicles()
-	Citizen.Wait(1000)
-	SpawnVehicles(vehicles)
+	Citizen.Wait(500)
+	SpawnVehiclesUpdated(vehicles)
 end)
 
 RegisterNetEvent("esx_realparking:addVehicle")
@@ -50,45 +50,54 @@ end
 
 -- Spawn local vehicles
 
-function SpawnVehicles(vehicles)
+function SpawnVehiclesUpdated(vehicles)
 	Citizen.CreateThread(function()
 		for i = 1, #vehicles, 1 do
 			local vehicleProps = vehicles[i].vehicle.props
-			DeleteLocalVehicle(vehicles[i].vehicle)
+            if not IsModelInCdimage(vehicleProps["model"]) then return end
+			RequestModel(vehicleProps["model"])
+			while not HasModelLoaded(vehicleProps["model"]) do
+				Citizen.Wait(0)
+			end
+			local existingEntity = DoesEntityExist(tempVeh)
+			local isImaged = IsModelInCdimage(vehicleProps["model"])
+            if existingEntity and HasModelLoaded(vehicleProps["model"]) then
+				DeleteEntity(tempVeh)
+                DeleteLocalVehicle(vehicles[i].vehicle)
+            end
 			local carLivery    = -1
 			if type(vehicles[i].vehicle.livery) ~= 'nil' then
 				carLivery = vehicles[i].vehicle.livery
 			end
-			LoadModel(vehicleProps["model"])
-			local tempVeh = CreateVehicle(vehicleProps["model"], vehicles[i].vehicle.location.x, vehicles[i].vehicle.location.y, vehicles[i].vehicle.location.z, vehicles[i].vehicle.location.h, false)
-			ESX.Game.SetVehicleProperties(tempVeh, vehicleProps)
-			SetVehicleOnGroundProperly(tempVeh)
-			SetEntityAsMissionEntity(tempVeh, true, true)
-			SetModelAsNoLongerNeeded(vehicleProps["model"])
-			SetEntityInvincible(tempVeh, true)
-			SetVehicleLivery(tempVeh, vehicles[i].vehicle.livery)
-			Wait(100)
-			FreezeEntityPosition(tempVeh, true)
-			if vehicles[i].owner ~= PlayerData.identifier then
-				SetVehicleDoorsLocked(tempVeh, 2)
+			if not existingEntity then 
+				local tempVeh = CreateVehicle(vehicleProps["model"], vehicles[i].vehicle.location.x, vehicles[i].vehicle.location.y, vehicles[i].vehicle.location.z, vehicles[i].vehicle.location.h, false)
+				ESX.Game.SetVehicleProperties(tempVeh, vehicleProps)
+				SetVehicleOnGroundProperly(tempVeh)
+				SetEntityAsMissionEntity(tempVeh, true, true)
+				SetModelAsNoLongerNeeded(vehicleProps["model"])
+				SetEntityInvincible(tempVeh, true)
+				SetVehicleLivery(tempVeh, vehicles[i].vehicle.livery)
+				FreezeEntityPosition(tempVeh, true)
+				if vehicles[i].owner ~= PlayerData.identifier then
+					SetVehicleDoorsLocked(tempVeh, 2)
+				end
+				table.insert(LocalVehicles, {
+					entity = tempVeh,
+					data   = vehicles[i].vehicle,
+					plate  = vehicles[i].plate,
+					fee    = vehicles[i].fee,
+					owner  = vehicles[i].owner,
+					name   = vehicles[i].name,
+					livery = carLivery,
+					health = vehicles[i].vehicle.health
+				})
+				
 			end
-			table.insert(LocalVehicles, {
-				entity = tempVeh,
-				data   = vehicles[i].vehicle,
-				plate  = vehicles[i].plate,
-				fee    = vehicles[i].fee,
-				owner  = vehicles[i].owner,
-				name   = vehicles[i].name,
-				livery = carLivery,
-				health = vehicles[i].vehicle.health
-			})
 			if LastPlate ~= nil and vehicles[i].plate == LastPlate then
 				TaskWarpPedIntoVehicle(GetPlayerPed(-1), tempVeh, -1)
-				Wait(500)
 				TaskLeaveVehicle(GetPlayerPed(-1), tempVeh)
 				LastPlate = nil
 			end
-			Wait(100)
 		end
 	end)
 end
@@ -114,7 +123,7 @@ function SpawnVehicle(vehicleData)
 		SetVehicleEngineHealth(tempVeh, vehicleData.vehicle.health.engine)
 		SetVehicleBodyHealth(tempVeh, vehicleData.vehicle.health.body)
 		SetVehiclePetrolTankHealth(tempVeh, vehicleData.vehicle.health.tank)
-		Wait(100)
+		Wait(500)
 		FreezeEntityPosition(tempVeh, true)
 		if vehicleData.owner ~= PlayerData.identifier then
 			SetVehicleDoorsLocked(tempVeh, 2)
@@ -152,12 +161,15 @@ function DriveVehicle(vehicle)
 	SetVehicleEngineHealth(tempVeh, vehicle.health.engine)
 	SetVehicleBodyHealth(tempVeh, vehicle.health.body)
 	SetVehiclePetrolTankHealth(tempVeh, vehicle.health.tank)
+	SetVehRadioStation(tempVeh, 'OFF')
 	TaskWarpPedIntoVehicle(GetPlayerPed(-1), tempVeh, -1)
 end
 
 -- Remove the local vehicles
 
 function RemoveVehicles()
+	local playerVehicle = GetVehiclePedIsIn(GetPlayerPed(-1), false)  -- Get the vehicle the player is in
+
 	for k, v in pairs(Config.ParkingLocations) do
 		local tmpLoc = {
 			["x"] = v.x,
@@ -170,8 +182,8 @@ function RemoveVehicles()
 		while notFound == false and timeOut < 3000 do
 			timeOut = timeOut + 1
 			local veh, distance = ESX.Game.GetClosestVehicle(tmpLoc)
-			local vl            = GetEntityCoords(veh)
-			if vl.x > v.x - v.size and vl.x < v.x + v.size and vl.y > v.y - v.size and vl.y < v.y + v.size and vl.z > v.z - v.height and vl.z < v.z + v.height then
+			local vl = GetEntityCoords(veh)
+			if veh ~= playerVehicle and vl.x > v.x - v.size and vl.x < v.x + v.size and vl.y > v.y - v.size and vl.y < v.y + v.size and vl.z > v.z - v.height and vl.z < v.z + v.height then
 				if NetworkGetEntityIsLocal(veh) then
 					local tmpModel = GetEntityModel(veh)
 					SetModelAsNoLongerNeeded(tmpModel)
@@ -242,35 +254,13 @@ end
 -- Load car model
 
 function LoadModel(model)
+	RequestModel(model)
 	while not HasModelLoaded(model) do
-		RequestModel(model)
 		Citizen.Wait(1)
 	end
 end
 
--- Draw 3d text on screen
 
-function Draw3DText(x, y, z, textInput, fontId, scaleX, scaleY)
-	local px, py, pz = table.unpack(GetGameplayCamCoords())
-	local dist       = GetDistanceBetweenCoords(px, py, pz, x, y, z, 1)    
-	local scale      = (1 / dist) * 20
-	local fov        = (1 / GetGameplayCamFov()) * 100
-	local scale      = scale * fov   
-	SetTextScale(scaleX * scale, scaleY * scale)
-	SetTextFont(fontId)
-	SetTextProportional(1)
-	SetTextColour(250, 250, 250, 255)
-	SetTextDropshadow(1, 1, 1, 1, 255)
-	SetTextEdge(2, 0, 0, 0, 150)
-	SetTextDropShadow()
-	SetTextOutline()
-	SetTextEntry("STRING")
-	SetTextCentre(1)
-	AddTextComponentString(textInput)
-	SetDrawOrigin(x, y, z + 2, 0)
-	DrawText(0.0, 0.0)
-	ClearDrawOrigin()
-end
 
 -- Main thread
 
@@ -281,9 +271,9 @@ Citizen.CreateThread(function()
 			ESX = obj
 		end)
 	end
-	Wait(1000)
+	Wait(500)
 	while not ESX.IsPlayerLoaded() do
-		Citizen.Wait(10)
+		Citizen.Wait(500)
 	end
 	PlayerData = ESX.GetPlayerData()
 	ESX.TriggerServerCallback("esx_realparking:getPlayerIdentifier", function(callback)
@@ -296,27 +286,78 @@ end)
 -- Check distance
 
 Citizen.CreateThread(function()
+    while PlayerIdentifier == nil do
+        Citizen.Wait(10)
+    end
+
+    local overlappingParkingAreas = {}  -- Store the overlapping parking areas
+
+    while true do
+        Wait(500)
+        local pl = GetEntityCoords(GetPlayerPed(-1))
+
+        -- Reset overlapping parking areas for this iteration
+        overlappingParkingAreas = {}
+
+        for k, v in pairs(Config.ParkingLocations) do
+            if GetDistanceBetweenCoords(pl.x, pl.y, pl.z, v.x, v.y, v.z, true) < v.size + 45.0 then
+                table.insert(overlappingParkingAreas, k)  -- Add overlapping area to the list
+            end
+        end
+		if #overlappingParkingAreas >= 2 and SpawnedVehicles and not neighborhood then
+			RemoveVehicles()
+			for _, crParking in ipairs(overlappingParkingAreas) do
+				TriggerServerEvent("esx_realparking:refreshVehicles", crParking)
+			end
+			neighborhood = true
+		end
+
+        if #overlappingParkingAreas > 0 then
+			--SpawnedVehicles = false
+            if not SpawnedVehicles then
+                -- RemoveVehicles()
+                for _, crParking in ipairs(overlappingParkingAreas) do
+                    TriggerServerEvent("esx_realparking:refreshVehicles", crParking)
+                end
+                SpawnedVehicles = true
+                Wait(500)
+            end
+        else
+            if SpawnedVehicles then
+                RemoveVehicles()
+                SpawnedVehicles = false
+				neighborhood = false
+            end
+        end
+    end
+end)
+
+
+
+--[[Citizen.CreateThread(function()
 	while PlayerIdentifier == nil do
 		Citizen.Wait(10)
 	end
 	while true do
-		Wait(0)
+		Wait(500)
 		local pl = GetEntityCoords(GetPlayerPed(-1))
 		local inParking = false
 		local crParking = nil
 		for k, v in pairs(Config.ParkingLocations) do
-			if GetDistanceBetweenCoords(pl.x, pl.y, pl.z, v.x, v.y, v.z, true) < v.size + 20.0 then
+			if GetDistanceBetweenCoords(pl.x, pl.y, pl.z, v.x, v.y, v.z, true) < v.size + 45.0 then
+			
 				inParking = true
 				crParking = k
+				
 			end
 		end
 		if inParking then
 			if not SpawnedVehicles then
 				print("Spawned the vehicles")
-				RemoveVehicles()
+				--RemoveVehicles()
 				TriggerServerEvent("esx_realparking:refreshVehicles", crParking)
 				SpawnedVehicles = true
-				Wait(2000)
+				Wait(500)
 			end
 		else
 			if SpawnedVehicles then
@@ -326,7 +367,7 @@ Citizen.CreateThread(function()
 			end
 		end
 	end
-end)
+end)]]
 
 -- Draw text thread
 
@@ -336,12 +377,29 @@ Citizen.CreateThread(function()
 		local pl = GetEntityCoords(GetPlayerPed(-1))
 		for k, v in pairs(Config.ParkingLocations) do
 			if GetDistanceBetweenCoords(pl.x, pl.y, pl.z, v.enter.x, v.enter.y, v.enter.z, true) < 20 then
-				Draw3DText(v.enter.x, v.enter.y, v.enter.z, v.name, 0, 0.2, 0.2)
-				Draw3DText(v.enter.x, v.enter.y, v.enter.z - 0.5, string.format(_U("parking_fee", v.fee)), 0, 0.1, 0.1)
+				
+
+				if v.isHidden then 
+					
+				else
+					Draw3DText(v.enter.x, v.enter.y, v.enter.z, v.name, 0, 0.2, 0.2)
+				end
+				
+				if v.fee~=0 then 
+					Draw3DText(v.enter.x, v.enter.y, v.enter.z - 0.5, string.format(_U("parking_fee", v.fee)), 0, 0.1, 0.1)
+				end
 			end
+			if Config.Debug then
+				if GetDistanceBetweenCoords(pl.x, pl.y, pl.z, v.enter.x, v.enter.y, v.enter.z, true) < Config.DebugDistance then
+					DrawMarker(28, v.x, v.y, v.z, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, v.size + 4, v.size + 4 , v.size, 255, 10, 10, 200, 0, 0, 0, 0)
+					DrawMarker(28, v.x, v.y, v.z, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, v.size, v.size , v.size, 10, 255, 10, 200, 0, 0, 0, 0)
+
+				end
+			end
+			
 		end
 		for k, v in pairs(LocalVehicles) do
-			if GetDistanceBetweenCoords(pl.x, pl.y, pl.z, v.data.location.x, v.data.location.y, v.data.location.z, true) < 3.0 then
+			if GetDistanceBetweenCoords(pl.x, pl.y, pl.z, v.data.location.x, v.data.location.y, v.data.location.z, true) < 7.0 and not IsPedInAnyVehicle(GetPlayerPed(-1), true) then
 				Draw3DText(v.data.location.x, v.data.location.y, v.data.location.z, string.format(_U("owner", v.name)), 0, 0.08, 0.08)
 				Draw3DText(v.data.location.x, v.data.location.y, v.data.location.z - 0.2, string.format(_U("plate", v.plate)), 0, 0.05, 0.05)
 			end
@@ -351,17 +409,21 @@ end)
 
 -- Creating blips
 
-Citizen.CreateThread(function()
-	for k, v in pairs(Config.ParkingLocations) do
-		local tempBlip = AddBlipForCoord(v.enter.x, v.enter.y, v.enter.z)
-		SetBlipSprite(tempBlip, 523)
-		SetBlipColour(tempBlip, 11)
-		SetBlipAsShortRange(tempBlip, true)
-		BeginTextCommandSetBlipName("STRING")
-		AddTextComponentString(v.name)
-		EndTextCommandSetBlipName(tempBlip)
-	end
-end)
+--Citizen.CreateThread(function()
+--	for k, v in pairs(Config.ParkingLocations) do
+--		local tempBlip = AddBlipForCoord(v.enter.x, v.enter.y, v.enter.z)
+--		SetBlipSprite(tempBlip, 523)
+--		SetBlipColour(tempBlip, 11)
+--		SetBlipAsShortRange(tempBlip, true)
+--		BeginTextCommandSetBlipName("STRING")
+--		AddTextComponentString(v.name)
+--		EndTextCommandSetBlipName(tempBlip)
+--	end
+--end)
+
+
+--- Debugging
+
 
 -- Logic thread
 
@@ -376,18 +438,27 @@ Citizen.CreateThread(function()
 			    inParking = true
 				parkName  = k
 			end
+			
 		end
 		if inParking and IsPedInAnyVehicle(GetPlayerPed(-1)) then
 			local storedVehicle = GetPedInStoredCar(GetPlayerPed(-1))
 			if storedVehicle ~= false then
-				DisplayHelpText(string.format(_U("need_parking_fee", storedVehicle.fee)))
+				if storedVehicle.fee ~= 0 then
+					DisplayHelpText(string.format(_U("need_parking_fee", storedVehicle.fee)))
+				else
+					local rehash = GetEntityModel(storedVehicle.entity)
+       				local vehicleName = GetDisplayNameFromVehicleModel(rehash)
+					local trueName = GetLabelText(vehicleName)
+					DisplayHelpText(string.format(_U("no_parking_fee", trueName)))
+				end
 			else
 				DisplayHelpText(_U("press_to_save"))
 			end
-			if IsControlJustReleased(0, 51) then
+			if IsControlJustReleased(0, 86) then
 				if storedVehicle ~= false then
 					DoScreenFadeOut(250)
 					Wait(500)
+					
 					ESX.TriggerServerCallback("esx_realparking:driveCar", function(callback)
 						if callback.status then
 							DeleteVehicle(storedVehicle.entity)
@@ -444,3 +515,28 @@ Citizen.CreateThread(function()
 		end
 	end
 end)
+
+
+-- Draw 3d text on screen
+
+function Draw3DText(x, y, z, textInput, fontId, scaleX, scaleY)
+	local px, py, pz = table.unpack(GetGameplayCamCoords())
+	local dist       = GetDistanceBetweenCoords(px, py, pz, x, y, z, 1)    
+	local scale      = (1 / dist) * 20
+	local fov        = (1 / GetGameplayCamFov()) * 100
+	local scale      = scale * fov   
+	SetTextScale(scaleX * scale, scaleY * scale)
+	SetTextFont(fontId)
+	SetTextProportional(1)
+	SetTextColour(250, 250, 250, 255)
+	SetTextDropshadow(1, 1, 1, 1, 255)
+	SetTextEdge(2, 0, 0, 0, 150)
+	SetTextDropShadow()
+	SetTextOutline()
+	SetTextEntry("STRING")
+	SetTextCentre(1)
+	AddTextComponentString(textInput)
+	SetDrawOrigin(x, y, z + 2, 0)
+	DrawText(0.0, 0.0)
+	ClearDrawOrigin()
+end

@@ -1,18 +1,16 @@
 --[[ ===================================================== ]]--
 --[[         FiveM Real Parking Script by Akkariin         ]]--
+--[[               Updated by itsHazeyo                    ]]--
 --[[ ===================================================== ]]--
 
-fx_version 'adamant'
-game 'gta5'
+fx_version 'bodacious'
+games { 'gta5' }
 
 client_scripts {
 	'@es_extended/locale.lua',
 	'config.lua',
 	'locales/en.lua',
 	'locales/zh.lua',
-	'locales/es.lua',
-	'locales/de.lua',
-	'locales/bg.lua',
 	'client/main.lua'
 }
 
@@ -22,8 +20,5 @@ server_scripts {
 	'config.lua',
 	'locales/en.lua',
 	'locales/zh.lua',
-	'locales/es.lua',
-	'locales/de.lua',
-	'locales/bg.lua',
-	'server/main.lua'
+	'server/main.lua',
 }
